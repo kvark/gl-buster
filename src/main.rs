@@ -5,7 +5,7 @@ fn main() {
         use glutin::GlContext;
         let events_loop = glutin::EventsLoop::new();
         let window_builder = glutin::WindowBuilder::new()
-            .with_title("Hello triangle!")
+            .with_title("GL Swizzle Test")
             .with_dimensions(glutin::dpi::LogicalSize::new(1024.0, 768.0));
         let context_builder = glutin::ContextBuilder::new().with_vsync(true);
         let window =
@@ -20,6 +20,21 @@ fn main() {
             glow::native::RenderLoop::<glutin::GlWindow>::from_glutin_window(window);
         (context, events_loop, render_loop)
     };
+
+    let renderer = unsafe {
+         gl.get_parameter_string(glow::RENDERER)
+    };
+    let extensions = unsafe {
+        let num = gl.get_parameter_i32(glow::NUM_EXTENSIONS);
+        (0 .. num)
+            .map(|i| {
+                gl.get_parameter_indexed_string(glow::EXTENSIONS, i as u32)
+            })
+            .filter(|ext| ext.contains("swizzle"))
+            .collect::<Vec<_>>()
+    };
+    println!("Renderer: {}", renderer);
+    println!("Swizzle: {:?}", extensions);
 
     unsafe {
         let texture = gl.create_texture().unwrap();
