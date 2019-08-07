@@ -685,6 +685,7 @@ dependencies = [
 name = "swizzle-test"
 version = "0.1.0"
 dependencies = [
+ "core-foundation 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "glow 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "glutin 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

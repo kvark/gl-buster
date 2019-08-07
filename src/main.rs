@@ -1,6 +1,17 @@
 use glow::{Context, RenderLoop};
 
 fn main() {
+    #[cfg(target_os = "macos")]
+    {
+        use core_foundation::{self as cf, base::TCFType};
+        let i = cf::bundle::CFBundle::main_bundle().info_dictionary();
+        let mut i = unsafe { i.to_mutable() };
+        i.set(
+            cf::string::CFString::new("NSSupportsAutomaticGraphicsSwitching"),
+            cf::boolean::CFBoolean::true_value().into_CFType(),
+        );
+    }
+
     let (gl, mut events_loop, render_loop) = {
         use glutin::GlContext;
         let events_loop = glutin::EventsLoop::new();
