@@ -1,5 +1,26 @@
 use glow::{Context, RenderLoop};
 
+fn checkerboard(w: i32, h: i32) -> Vec<u8> {
+    let mut texels = Vec::new();
+    let color = [50, 150, 250, 255];
+    for y in 0..h {
+        for x in 0..w {
+            let checker = if (x % 20 >= 10) != (y % 20 >= 10) {
+                1
+            } else {
+                0
+            };
+            let tc = (1 - checker) * 40;
+
+            texels.push(color[0] * checker + tc);
+            texels.push(color[1] * checker + tc);
+            texels.push(color[2] * checker + tc);
+            texels.push(color[3] * checker + tc);
+        }
+    }
+    texels
+}
+
 fn main() {
     #[cfg(target_os = "macos")]
     {
@@ -48,17 +69,21 @@ fn main() {
     println!("Swizzle: {:?}", extensions);
 
     unsafe {
+        let (w, h) = (512i32, 512i32);
+        let data = checkerboard(w, h);
         let texture = gl.create_texture().unwrap();
         gl.bind_texture(glow::TEXTURE_2D_ARRAY, Some(texture));
-        gl.tex_storage_3d(glow::TEXTURE_2D_ARRAY, 1, glow::RGBA8, 2, 1, 1);
-        gl.tex_sub_image_3d_u8_slice(glow::TEXTURE_2D_ARRAY, 0, 0, 0, 0,
-            2, 1, 1, glow::RGBA, glow::UNSIGNED_BYTE, Some(&[
-                0xFF, 0, 0, 0xFF,
-                0, 0, 0xFF, 0xFF,
-            ]));
+        gl.tex_storage_3d(glow::TEXTURE_2D_ARRAY, 1, glow::RGBA8, w, w, 2);
         gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_MAG_FILTER, glow::LINEAR as i32);
+        gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_MIN_FILTER, glow::LINEAR as i32);
+        gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_WRAP_S, glow::CLAMP_TO_EDGE as i32);
+        gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_WRAP_T, glow::CLAMP_TO_EDGE as i32);
+        gl.tex_sub_image_3d_u8_slice(glow::TEXTURE_2D_ARRAY, 0, 0, 0, 0,
+            w, h, 1, glow::RGBA, glow::UNSIGNED_BYTE, Some(&data));
         gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_SWIZZLE_R, glow::BLUE as i32);
+        gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_SWIZZLE_G, glow::GREEN as i32);
         gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_SWIZZLE_B, glow::RED as i32);
+        gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_SWIZZLE_A, glow::ALPHA as i32);
     };
 
     unsafe {
