@@ -1,26 +1,5 @@
 use glow::{Context, RenderLoop};
 
-fn checkerboard(w: i32, h: i32) -> Vec<u8> {
-    let mut texels = Vec::new();
-    let color = [50, 150, 250, 255];
-    for y in 0..h {
-        for x in 0..w {
-            let checker = if (x % 20 >= 10) != (y % 20 >= 10) {
-                1
-            } else {
-                0
-            };
-            let tc = (1 - checker) * 40;
-
-            texels.push(color[0] * checker + tc);
-            texels.push(color[1] * checker + tc);
-            texels.push(color[2] * checker + tc);
-            texels.push(color[3] * checker + tc);
-        }
-    }
-    texels
-}
-
 fn main() {
     #[cfg(target_os = "macos")]
     {
@@ -69,17 +48,10 @@ fn main() {
     println!("Swizzle: {:?}", extensions);
 
     unsafe {
-        let (w, h) = (512i32, 512i32);
-        let data = checkerboard(w, h);
+        let size = 512;
         let texture = gl.create_texture().unwrap();
         gl.bind_texture(glow::TEXTURE_2D_ARRAY, Some(texture));
-        gl.tex_storage_3d(glow::TEXTURE_2D_ARRAY, 1, glow::RGBA8, w, w, 2);
-        gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_MAG_FILTER, glow::LINEAR as i32);
-        gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_MIN_FILTER, glow::LINEAR as i32);
-        gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_WRAP_S, glow::CLAMP_TO_EDGE as i32);
-        gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_WRAP_T, glow::CLAMP_TO_EDGE as i32);
-        gl.tex_sub_image_3d_u8_slice(glow::TEXTURE_2D_ARRAY, 0, 0, 0, 0,
-            w, h, 1, glow::RGBA, glow::UNSIGNED_BYTE, Some(&data));
+        gl.tex_storage_3d(glow::TEXTURE_2D_ARRAY, 1, glow::RGBA8, size, size, 2);
         gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_SWIZZLE_R, glow::BLUE as i32);
         gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_SWIZZLE_G, glow::GREEN as i32);
         gl.tex_parameter_i32(glow::TEXTURE_2D_ARRAY, glow::TEXTURE_SWIZZLE_B, glow::RED as i32);
@@ -96,24 +68,27 @@ fn main() {
     let program = unsafe {
         let program = gl.create_program().expect("Cannot create program");
         let vertex_shader_source = r#"#version 330 core
-            const vec2 verts[3] = vec2[3](
-                vec2(0.5f, 1.0f),
-                vec2(0.0f, 0.0f),
-                vec2(1.0f, 0.0f)
+            uniform sampler2DArray tex;
+            const vec2 verts[4] = vec2[4](
+                vec2(0.2f, 0.2f),
+                vec2(0.2f, 0.8f),
+                vec2(0.8f, 0.2f),
+                vec2(0.8f, 0.8f)
             );
-            out vec2 tc;
+            out vec4 color;
             void main() {
-                tc = verts[gl_VertexID];
+                vec2 tc = verts[gl_VertexID];
+                vec2 tex_size = vec2(textureSize(tex, 0).xy);
+                color = vec4(tex_size/512.0, 0.0, 1.0);
                 gl_Position = vec4(2.0*tc - 1.0, 0.0, 1.0);
             }
         "#;
         let fragment_shader_source = r#"#version 330 core
             precision mediump float;
-            uniform sampler2DArray tex;
-            in vec2 tc;
-            out vec4 color;
+            in vec4 color;
+            out vec4 o_Color;
             void main() {
-                color = texture(tex, vec3(tc, 0.0));
+                o_Color = color;
             }
         "#;
         let shader_sources = [
@@ -150,7 +125,7 @@ fn main() {
         unsafe {
             gl.clear(glow::COLOR_BUFFER_BIT);
             gl.use_program(Some(program));
-            gl.draw_arrays(glow::TRIANGLES, 0, 3);
+            gl.draw_arrays(glow::TRIANGLE_STRIP, 0, 4);
         }
     });
 }
