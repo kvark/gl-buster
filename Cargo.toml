@@ -8,6 +8,7 @@ publish = false
 [dependencies]
 colorful = "0.2"
 glow = "0.4"
+progress = "0.2"
 surfman = { version = "0.2", default_features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]

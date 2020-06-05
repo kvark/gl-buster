@@ -136,6 +136,7 @@ fn test_pbo_upload<C: glow::HasContext>(gl: &C) {
     const FILL: [u8; 4] = [0, 0xFF, 0, 0xFF];
     let size = (256, 16);
     let mut texels = [[0u8; 4]; 3];
+    let num_texels_to_copy = 16;
     unsafe {
         // initialize the texture
         let texture = gl.create_texture().unwrap();
@@ -185,7 +186,7 @@ fn test_pbo_upload<C: glow::HasContext>(gl: &C) {
             texel_offset,
             0,
             0,
-            16,
+            num_texels_to_copy,
             1,
             1,
             glow::RGBA,
@@ -202,6 +203,65 @@ fn test_pbo_upload<C: glow::HasContext>(gl: &C) {
             &mut texels[1],
         );
 
+        assert_eq!(gl.get_error(), 0);
+        let test_num_texels_to_copy = 64;
+        let temp_data = vec![0x80u8; (test_num_texels_to_copy as usize) * 4];
+        let mut read_data = temp_data.clone();
+        let mut bar = progress::Bar::new();
+        for y_offset in 0 .. size.1 {
+            bar.set_job_title(&format!("Base row={}", y_offset));
+            for x_offset in 0..(size.0 - test_num_texels_to_copy) {
+                bar.reach_percent((x_offset / (size.0 - test_num_texels_to_copy)) as i32);
+                for pbo_offset in 0..(size.0 - test_num_texels_to_copy) * 4 {
+                    gl.bind_buffer(glow::PIXEL_UNPACK_BUFFER, None);
+                    gl.tex_sub_image_3d_u8_slice(
+                        glow::TEXTURE_2D_ARRAY,
+                        0,
+                        x_offset,
+                        y_offset,
+                        0,
+                        test_num_texels_to_copy,
+                        1,
+                        1,
+                        glow::RGBA,
+                        glow::UNSIGNED_BYTE,
+                        Some(&temp_data),
+                    );
+                    gl.bind_buffer(glow::PIXEL_UNPACK_BUFFER, Some(pixelbuf));
+                    assert_eq!(gl.get_error(), 0);
+                    gl.tex_sub_image_3d_pixel_buffer_offset(
+                        glow::TEXTURE_2D_ARRAY,
+                        0,
+                        x_offset,
+                        y_offset,
+                        0,
+                        test_num_texels_to_copy,
+                        1,
+                        1,
+                        glow::RGBA,
+                        glow::UNSIGNED_BYTE,
+                        pbo_offset,
+                    );
+                    assert_eq!(gl.get_error(), 0);
+                    gl.read_pixels(
+                        x_offset,
+                        y_offset,
+                        test_num_texels_to_copy,
+                        1,
+                        glow::RGBA,
+                        glow::UNSIGNED_BYTE,
+                        read_data.as_mut_slice(),
+                    );
+                    assert_eq!(gl.get_error(), 0);
+                    if read_data.chunks(4).any(|chunk| chunk != FILL) {
+                        println!("\tPBO offset {}, texel {}x{}: {} {:?}",
+                            pbo_offset, x_offset, y_offset, "FAIL".color(Color::Red), read_data);
+                    }
+                }
+            }
+            bar.jobs_done();
+        }
+
         // upload to the other layer of the texture
         gl.tex_sub_image_3d_pixel_buffer_offset(
             glow::TEXTURE_2D_ARRAY,
@@ -209,7 +269,7 @@ fn test_pbo_upload<C: glow::HasContext>(gl: &C) {
             0,
             0,
             1,
-            16,
+            num_texels_to_copy,
             1,
             1,
             glow::RGBA,
