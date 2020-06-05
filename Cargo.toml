@@ -1,13 +1,14 @@
 [package]
-name = "gl-bug-tester"
+name = "gl-buster"
 version = "0.1.0"
 authors = ["Dzmitry Malyshau <dmalyshau@mozilla.com>"]
 edition = "2018"
+publish = false
 
 [dependencies]
 colorful = "0.2"
 glow = "0.4"
-surfman = "0.2"
+surfman = { version = "0.2", default_features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.6"

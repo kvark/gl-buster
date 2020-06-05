@@ -20,7 +20,7 @@ unsafe fn link_program<C: glow::HasContext>(gl: &C, vs: &str, ps: &str) -> C::Pr
 }
 
 fn report(name: &str, actual: [u8; 4], expected: [u8; 4]) {
-    print!("\t{}: ", name.color(Color::Blue));
+    print!("\t{}: ", name.color(Color::LightBlue));
     if actual == expected {
         println!("{}", "PASS".color(Color::Green));
     } else {
@@ -35,7 +35,7 @@ fn report(name: &str, actual: [u8; 4], expected: [u8; 4]) {
 ///
 /// Affected: Intel 4000 GPU on macOS
 fn test_swizzle<C: glow::HasContext>(gl: &C, extensions: &[String]) {
-    println!("Test: {}", "swizzle".color(Color::DarkBlue));
+    println!("Test: {}", "swizzle".color(Color::Blue));
     print!("\tRelevant extensions:");
     for ext in extensions {
         if ext.contains("swizzle") {
@@ -132,7 +132,7 @@ fn test_swizzle<C: glow::HasContext>(gl: &C, extensions: &[String]) {
 }
 
 fn test_pbo_upload<C: glow::HasContext>(gl: &C) {
-    println!("Test: {}", "PBO uploads".color(Color::DarkBlue));
+    println!("Test: {}", "PBO uploads".color(Color::Blue));
     const FILL: [u8; 4] = [0, 0xFF, 0, 0xFF];
     let size = (256, 16);
     let mut texels = [[0u8; 4]; 3];
@@ -234,6 +234,7 @@ fn test_pbo_upload<C: glow::HasContext>(gl: &C) {
 fn main() {
     use glow::HasContext;
 
+    // this snippet allows us to use the GPU selected by "gfxCardStatus" tool
     #[cfg(target_os = "macos")]
     {
         use core_foundation::{self as cf, base::TCFType};
