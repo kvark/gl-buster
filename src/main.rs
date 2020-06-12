@@ -134,25 +134,42 @@ fn test_swizzle<C: glow::HasContext>(gl: &C, extensions: &[String]) {
 fn test_pbo_upload<C: glow::HasContext>(gl: &C) {
     println!("Test: {}", "PBO uploads".color(Color::Blue));
     const FILL: [u8; 4] = [0, 0xFF, 0, 0xFF];
-    let size = (256, 16);
-    let mut texels = [[0u8; 4]; 3];
+    let mut texels = [[0u8; 4]; 2];
+
+    let texture_size = (256, 64, 1);
+    let bytes_per_texel = 4i32;
+    let copy_size = (1i32, 1i32);
+    let copy_origin = (128, 0, 0);
+    let pbo_offset = 16384i32;
+    let stride_texels = 4i32;
+    let pbo_texels = texture_size.0 * texture_size.1;
+
+    assert!(copy_size.0 <= stride_texels);
+    assert!(copy_origin.0 + copy_size.0 <= texture_size.0);
+    assert!(copy_origin.1 + copy_size.1 <= texture_size.1);
+    assert!(copy_origin.2 < texture_size.2);
+    assert_eq!(pbo_offset % bytes_per_texel, 0);
+    let required_texels = pbo_offset / bytes_per_texel + stride_texels * copy_size.1;
+    assert!(required_texels <= pbo_texels,
+        "Required {} texels, but only have space for {}", required_texels, pbo_texels);
+
     unsafe {
         // initialize the texture
         let texture = gl.create_texture().unwrap();
         gl.bind_texture(glow::TEXTURE_2D_ARRAY, Some(texture));
-        gl.tex_storage_3d(glow::TEXTURE_2D_ARRAY, 1, glow::RGBA8, size.0, size.1, 2);
+        gl.tex_storage_3d(glow::TEXTURE_2D_ARRAY, 1, glow::RGBA8, texture_size.0, texture_size.1, texture_size.2);
         gl.tex_sub_image_3d_u8_slice(
             glow::TEXTURE_2D_ARRAY,
             0,
             0,
             0,
             0,
-            size.0,
-            size.1,
-            2,
+            texture_size.0,
+            texture_size.1,
+            texture_size.2,
             glow::RGBA,
             glow::UNSIGNED_BYTE,
-            Some(&vec![0xFF; (size.0 as usize) * (size.1 as usize) * 4]),
+            Some(&vec![0xFF; (texture_size.0 * texture_size.1 * texture_size.2 * bytes_per_texel) as usize]),
         );
 
         // initialize a framebuffer for reading pixels back
@@ -167,68 +184,54 @@ fn test_pbo_upload<C: glow::HasContext>(gl: &C) {
         );
         gl.read_pixels(0, 0, 1, 1, glow::RGBA, glow::UNSIGNED_BYTE, &mut texels[0]);
 
-        // create a pixel buffer with one line
         let pixelbuf = gl.create_buffer().unwrap();
         gl.bind_buffer(glow::PIXEL_UNPACK_BUFFER, Some(pixelbuf));
         gl.buffer_data_u8_slice(
             glow::PIXEL_UNPACK_BUFFER,
-            &(0..size.0)
+            &(0..pbo_texels)
                 .flat_map(|_| FILL.iter().cloned())
                 .collect::<Vec<_>>(),
             glow::STATIC_DRAW,
         );
-        let texel_offset = 16;
-        let pbo_offset = 128 * 4;
+
+        gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
+        gl.pixel_store_i32(glow::UNPACK_ROW_LENGTH, stride_texels);
+
+        gl.framebuffer_texture_layer(
+            glow::FRAMEBUFFER,
+            glow::COLOR_ATTACHMENT0,
+            Some(texture),
+            0,
+            copy_origin.2,
+        );
         gl.tex_sub_image_3d_pixel_buffer_offset(
             glow::TEXTURE_2D_ARRAY,
             0,
-            texel_offset,
-            0,
-            0,
-            16,
-            1,
+            copy_origin.0,
+            copy_origin.1,
+            copy_origin.2,
+            copy_size.0,
+            copy_size.1,
             1,
             glow::RGBA,
             glow::UNSIGNED_BYTE,
             pbo_offset,
         );
         gl.read_pixels(
-            texel_offset,
-            0,
+            copy_origin.0,
+            copy_origin.1,
             1,
             1,
             glow::RGBA,
             glow::UNSIGNED_BYTE,
             &mut texels[1],
         );
-
-        // upload to the other layer of the texture
-        gl.tex_sub_image_3d_pixel_buffer_offset(
-            glow::TEXTURE_2D_ARRAY,
-            0,
-            0,
-            0,
-            1,
-            16,
-            1,
-            1,
-            glow::RGBA,
-            glow::UNSIGNED_BYTE,
-            0,
-        );
-        gl.framebuffer_texture_layer(
-            glow::FRAMEBUFFER,
-            glow::COLOR_ATTACHMENT0,
-            Some(texture),
-            0,
-            1,
-        );
-        gl.read_pixels(0, 0, 1, 1, glow::RGBA, glow::UNSIGNED_BYTE, &mut texels[2]);
     }
 
-    assert_eq!(texels[0], [0xFF; 4]);
-    report("offset-128px", texels[1], FILL);
-    report("layer-1", texels[2], FILL);
+    report("sanity copy at the origin", texels[0], [0xFF; 4]);
+    let description = format!("copy at {:?} by offset {} with stride {}",
+        copy_origin, pbo_offset, stride_texels);
+    report(&description, texels[1], FILL);
 }
 
 fn main() {
