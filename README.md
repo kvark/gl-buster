@@ -9,19 +9,17 @@ Test: swizzle
 	Relevant extensions: GL_ARB_texture_swizzle
 	textureSize: PASS
 Test: PBO uploads
-	offset-128px: PASS
-	layer-1: PASS
+	sanity copy at the origin: PASS
+	copy at (128, 0, 0) by offset 16384 with stride 4: FAIL [0, 0, 0, 0]
 Done
 ```
-
 ## Swizzling
 
-Swizzling can break the texture unit meta-data with Intel 4000 GPUs on Mac.
+Swizzling can break the texture unit meta-data with Intel 4000 GPUs on Mac:
+- Intel HD Graphics 4000 OpenGL Engine
 
-### NVIDIA GeForce GT 650M OpenGL Engine
+## PBO uploads
 
-![Good](pics/good.png)
+On macOS, uploading PBO data with some offsets and origins doesn't work on AMD cards:
+- AMD Radeon Pro 460 OpenGL Engine
 
-### Intel HD Graphics 4000 OpenGL Engine
-
-![Bad](pics/bad.png)
